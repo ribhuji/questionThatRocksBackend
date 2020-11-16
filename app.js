@@ -45,7 +45,6 @@ app.use(express.static(path.join(__dirname, "public")));
 // api routes
 const authRoutes = require("./routes/auth");
 
-
 app.use("/api/auth", authRoutes);
 
 // Error Handler

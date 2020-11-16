@@ -69,37 +69,60 @@ exports.validateUser = async (req, res, next) => {
 exports.registerUser = async (req, res, next) => {
     try {
         //console.log(req.user.id);
-        const { name, surname, password, email, contactNumber, role } = req.body;
-
+        var bodyRec = req.body;
+        //check if all the fielda are present or not
+        if(!bodyRec.hasOwnProperty('name')){
+            return next(new ErrorResponse('Please enter name', 400));
+        } else if(!bodyRec.hasOwnProperty('surname')){
+            return next(new ErrorResponse('Please enter surname', 400));
+        } else if(!bodyRec.hasOwnProperty('password')){
+            return next(new ErrorResponse('Please enter password', 400));
+        } else if(!bodyRec.hasOwnProperty('email')){
+            return next(new ErrorResponse('Please enter email', 400));
+        } else if(!bodyRec.hasOwnProperty('contactNumber')){
+            return next(new ErrorResponse('Please enter contactNumber', 400));
+        } else if(!bodyRec.hasOwnProperty('role')){
+            return next(new ErrorResponse('Please enter role', 400));
+        }
         // const hello = await db.Counter.create({'_id': 'userid', 'sequence_value': 0});
 
-        if (email) {
-            var userEmail = await db.User.findOne({ "email": email });
-            if (userEmail) {
-                return next(new ErrorResponse("email already registered", 401));
-            }
+        //find if email already in use
+        var userEmail = await db.User.findOne({ "email": bodyRec['email'] });
+        if (userEmail) {
+            return next(new ErrorResponse("email already registered", 401));
         }
 
+        bodyRec['name'] = bodyRec['name'].trim();
+        bodyRec['surname'] = bodyRec['surname'].trim();
 
-        var stringid = 'userid';
-        var counterobj = await db.Counter.findByIdAndUpdate(stringid, { $inc: { sequence_value: 1 } }, { upsert: true });
-        var username = name.toLowerCase() + surname.toLowerCase() + counterobj.sequence_value;
-        var user = await db.User.create({
-            "name": name,
-            "surname": surname,
+        var counterUser = await db.Counter.findOne({name: 'userid'});
+        if(!counterUser){
+            await db.Counter.create({name: "userid", sequence_value: 0});
+        }
+        var counterobj = await db.Counter.findOneAndUpdate({name: 'userid'}, { $inc: { sequence_value: 1 } }, { upsert: true });
+        console.log(counterobj);
+        //console.log(bodyRec['name'].trim().toLowerCase());
+        var username = bodyRec['name'].toLowerCase() + bodyRec['surname'].toLowerCase() + counterobj.sequence_value;
+        var obj = {
+            "name": bodyRec['name'],
+            "surname": bodyRec['surname'],
             "username": username,
-            "password": password,
-            "email": email ? email : null,
-            "contactNumber": contactNumber ? contactNumber : null,
-            "role": role
-        });
+            "password": bodyRec['password'],
+            "email": bodyRec['email'],
+            "contactNumber": bodyRec['contactNumber'],
+            "role": bodyRec['role'],
+            "address": bodyRec['address'] ? bodyRec['address'] : null
+        };
+        //console.log(obj);
 
+        var user = await db.User.create(obj);
         user.save({ validateBeforeSave: false });
 
 
         // get JWT Token
         getTokenResponse(user, 201, res);
     } catch (error) {
+        //console.log(error);
         next(error);
     }
 };

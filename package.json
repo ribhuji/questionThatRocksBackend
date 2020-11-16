@@ -26,6 +26,7 @@
         "colors": "^1.4.0",
         "cookie-parser": "^1.4.4",
         "cors": "^2.8.5",
+        "cross-env": "^7.0.2",
         "csv-parser": "^2.3.3",
         "delete-null": "^0.1.2",
         "dotenv": "^8.2.0",

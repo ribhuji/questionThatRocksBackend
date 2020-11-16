@@ -55,8 +55,8 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["abc", "def"],
-        default: "abc",
+        enum: ["admin", "moderator", "user"],
+        default: "user",
         required: [true, "Role field is required"]
     },
     profileImage: {
