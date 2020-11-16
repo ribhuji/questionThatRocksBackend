@@ -1,7 +1,7 @@
 {
-    "name": "boiler-plate-node-express",
+    "name": "questionThatRocks",
     "version": "1.0.0",
-    "description": "Boiler plate api",
+    "description": "",
     "main": "index.js",
     "scripts": {
         "prod": "cross-env NODE_ENV=production node index",
