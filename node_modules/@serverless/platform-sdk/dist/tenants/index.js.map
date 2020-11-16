@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../src/tenants/index.js"],"names":["default"],"mappings":";;;;;;;;;;;gDAASA,O;;;;;;;;;iDACAA,O","file":"index.js","sourcesContent":["export { default as listTenants } from './listTenants' // eslint-disable-line\nexport { default as createTenant } from './createTenant' // eslint-disable-line\n"]}

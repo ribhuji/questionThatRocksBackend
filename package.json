@@ -1,0 +1,48 @@
+{
+    "name": "boiler-plate-node-express",
+    "version": "1.0.0",
+    "description": "Boiler plate api",
+    "main": "index.js",
+    "scripts": {
+        "prod": "cross-env NODE_ENV=production node index",
+        "dev": "cross-env NODE_ENV=development nodemon index"
+    },
+    "keywords": [
+        "nodejs",
+        "nodejs api"
+    ],
+    "author": "Ribhu Ratnam",
+    "license": "MIT",
+    "devDependencies": {
+        "chai": "^4.2.0",
+        "chai-http": "^4.3.0",
+        "mocha": "^7.0.1",
+        "nodemon": "^2.0.4",
+        "serverless": "^1.74.1"
+    },
+    "dependencies": {
+        "bcryptjs": "^2.4.3",
+        "cheerio": "^1.0.0-rc.3",
+        "colors": "^1.4.0",
+        "cookie-parser": "^1.4.4",
+        "cors": "^2.8.5",
+        "csv-parser": "^2.3.3",
+        "delete-null": "^0.1.2",
+        "dotenv": "^8.2.0",
+        "express": "^4.17.1",
+        "express-fileupload": "^1.1.6",
+        "express-mongo-sanitize": "^1.3.2",
+        "express-rate-limit": "^5.0.0",
+        "helmet": "^3.21.2",
+        "hpp": "^0.2.2",
+        "jsonwebtoken": "^8.5.1",
+        "mongoose": "^5.7.8",
+        "request": "^2.88.2",
+        "request-promise": "^4.2.6",
+        "sha1": "^1.1.1",
+        "slugify": "^1.3.6",
+        "xml-to-json-promise": "0.0.3",
+        "xss-clean": "^0.1.1",
+        "yargs": "^15.0.2"
+    }
+}

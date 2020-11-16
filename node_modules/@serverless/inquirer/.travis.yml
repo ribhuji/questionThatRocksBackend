@@ -1,0 +1,126 @@
+language: node_js
+
+git:
+  # Minimize git history, but ensure to not break things:
+  # - Merging multiple PR's around same time may introduce a case where it's not
+  #   the last merge commit that is to be tested
+  # - Aside of merge commit we need a previous commit to be able to detect a version switch
+  depth: 30
+
+cache:
+  # Not relying on 'npm' shortcut, as per Travis docs it's the only 'node_modules' that it'll cache
+  directories:
+    - $HOME/.npm
+    - node_modules
+
+branches:
+  only:
+    - master # Do not build PR branches
+    - /^v\d+\.\d+\.\d+$/ # Ensure to build release tags
+
+stages:
+  - name: Test
+    if: tag IS NOT present
+  - name: Deploy
+    if: tag =~ ^v\d+\.\d+\.\d+$
+
+env:
+  global:
+    - FORCE_COLOR=1 # Ensure colored output (color support is not detected in some cases)
+
+# Ensure to install dependencies at their latest versions
+install:
+  # Note: `npm update` has issues which we need to workaround:
+  # - There seems no way to update all project dependency groups in one run
+  #   Hence different calls for prod and dev dependencies
+  # - We were relying on "--depth 3", but depth setting makes optional dependencies not optional
+  #   and adding "--no-optional" proven to not be a reliable workaround (worked just in some cases)
+  # - npm documents --dev option for dev dependencies update, but it's only --save-dev that works
+  - npm update --no-save # Updates just dependencies
+  - npm update --save-dev --no-save # Updates just devDependencies
+
+before_script:
+  # Fail build right after first script fails. Travis doesn't ensure that: https://github.com/travis-ci/travis-ci/issues/1066
+  # More info on below line: https://www.davidpashley.com/articles/writing-robust-shell-scripts/#idm5413512
+  - set -e
+  - git config --global user.email "platform@serverless.com"
+  - git config --global user.name "Serverless CI"
+
+# Ensure to fail build if deploy fails, Travis doesn't ensure that: https://github.com/travis-ci/travis-ci/issues/921
+before_deploy:
+  - set -e
+  # Remove eventual old npm logs
+  - rm -rf ~/.npm/_logs
+after_deploy:
+  - |
+    # npm creates log only on failure
+    if [ -d ~/.npm/_logs ]; then
+      # Undocumented way to force Travis build to fail
+      travis_terminate 1
+    fi
+  - npx github-release-from-cc-changelog $TRAVIS_TAG
+
+jobs:
+  include:
+    # In most cases it's best to configure one job per platform & Node.js version combination
+    # (job boot & setup takes ca 1 minute, one task run lasts ca few seconds)
+
+    # PR's from branches
+    # Ensure commit messages follow CC, and confirm on changelog in case of release PR's
+    - name: 'Prettier check updated, Lint updated, Commitlint, Changelog confirm (on release) - Node.js v12'
+      if: type = pull_request AND fork = false
+      node_js: 12
+      script:
+        - npm run prettier-check:updated
+        - npm run lint:updated
+        - npm run commitlint:pull-request
+        # If release PR, confirm we have a changelog
+        - |
+          tagName=`git diff -U0 master package.json | grep '"version": "' | tail -n 1 | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"` || :
+          if [ -n "$tagName" ];
+          then
+            npx dump-release-notes-from-cc-changelog $tagName
+          fi
+
+    # PR's from forks
+    # Do not validate commit messages,
+    # (if user didn't ensure CC, PR should be squash merged with a valid CC commit message)
+    - name: 'Prettier check updated, Lint updated - Node.js v12'
+      if: type = pull_request AND fork = true
+      node_js: 12
+      script:
+        - npm run prettier-check:updated
+        - npm run lint:updated
+
+    # master branch
+    - name: 'Tag on version bump - Node.js v12'
+      if: branch = master AND type = push
+      env:
+        # GITHUB_TOKEN
+        - secure: Xktr4XEb1gUvoVRqANpPAjGEuIAodf/i2T2uoMpFIQPyFduUhnMV1vACmpdivir77tDbD2qUhsXgmtMIfin6LRvIi8s1mztw9JzvYrBGlK4OL3YxM7Vy0nP0sjOcanHvgh7frtpR9Df7cEmqWTtNH5lGhZWfYWpb414MUyoVyqJnHJX1xS1K5YIP6phiZmEOd7om9e1nnMWF7e/mX2CTKhf8F845VvMO3YJqHrCtx9Bi594hBrvgSZPC83/1t6g7qhGpO0pTJp3+kR3un/fkzQbSFHDnsiZXYP4KDdKuPv4ERP1oyqQnnF3P2tbHblHtzbeXF+8E3Qc/1Em9RaTQ3UgdF+kxXaMvvcvTe6/SoTuL01CmWcg6I7yFK2/R+TkKjkWybLVyWpxGN8vasR7T5ORQPtZPjaXnMS5x608XibLN/SlhKO7r4zD7TEHrHHZhA65f0O7XCuLFFEtkrwrXqYw3OYWZRwYcoj2YG1Bz7p4GmlRmPZdQ09+Tcb5ZKv9+bUiVirjDWje5R4wpeHYCg+yNiKBWTKBLRhUByhqTX36SL2Wx8xMpWk/G/vPbcVgYcLvikU6Nb8o7Zj7qvmm5fw2tsc9mMLWXU9MzeVFzw53AFYzET1dNSQk3MTSV/BplUPIWRFrdOji/+Kf23VhB4yC/mnwxkHrnIJkMn6wQemQ=
+      node_js: 12
+      script:
+        # If package version was changed with last merged PR, push tag
+        - |
+          tagName=`git diff -U0 HEAD^ package.json | grep '"version": "' | tail -n 1 | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"` || :
+          if [ -n "$tagName" ];
+          then
+            git tag v$tagName
+            git push -q https://$GITHUB_TOKEN@github.com/serverless/inquirer --tags
+          fi
+
+    # version tag
+    - stage: Deploy
+      env:
+        # GITHUB_TOKEN
+        - secure: Xktr4XEb1gUvoVRqANpPAjGEuIAodf/i2T2uoMpFIQPyFduUhnMV1vACmpdivir77tDbD2qUhsXgmtMIfin6LRvIi8s1mztw9JzvYrBGlK4OL3YxM7Vy0nP0sjOcanHvgh7frtpR9Df7cEmqWTtNH5lGhZWfYWpb414MUyoVyqJnHJX1xS1K5YIP6phiZmEOd7om9e1nnMWF7e/mX2CTKhf8F845VvMO3YJqHrCtx9Bi594hBrvgSZPC83/1t6g7qhGpO0pTJp3+kR3un/fkzQbSFHDnsiZXYP4KDdKuPv4ERP1oyqQnnF3P2tbHblHtzbeXF+8E3Qc/1Em9RaTQ3UgdF+kxXaMvvcvTe6/SoTuL01CmWcg6I7yFK2/R+TkKjkWybLVyWpxGN8vasR7T5ORQPtZPjaXnMS5x608XibLN/SlhKO7r4zD7TEHrHHZhA65f0O7XCuLFFEtkrwrXqYw3OYWZRwYcoj2YG1Bz7p4GmlRmPZdQ09+Tcb5ZKv9+bUiVirjDWje5R4wpeHYCg+yNiKBWTKBLRhUByhqTX36SL2Wx8xMpWk/G/vPbcVgYcLvikU6Nb8o7Zj7qvmm5fw2tsc9mMLWXU9MzeVFzw53AFYzET1dNSQk3MTSV/BplUPIWRFrdOji/+Kf23VhB4yC/mnwxkHrnIJkMn6wQemQ=
+      node_js: 12
+      script: skip
+      deploy:
+        edge: true
+        provider: npm
+        email: services@serverless.com
+        on:
+          tags: true
+        api_key:
+          secure: YJWB5zpjgiGAHLzaNhbGkNiK9ziR8UFzjpf76p1hPZPUL/1EB8cPgYeG60rknnFS10z26RtDFfubIMhzl8V9z3O8rQNEQkO01hZ2wFffJkOFt3zjzNoaZhZHewT+0/mYKF3MlxlGXupDDsAyQ9qhNBFu9rKfoCbp7puO8xMy2XY9ZL1BLtQDAKJ98D8aMSezrf7lAV53W8hYbPp4eKTu/6SNXjDYZNbtDN03s7xpc7Y6hgEWG8LVkBNd/LlVlp82fQzGuG935SDpW9LllngwQmnH4fJP4NbYMpqbwYG0DaALkFV37Ga0UnVjQwTnivJzDXR1db9VSfKcXx946OXhBsfrtvT5ZVKrXJUB6pdzJqpaUiQccRAuKLkOA6JKnG2zFnq86nhszo/+IM7zis+mUm5wZXMj4yI/azuwUGfudcJe1+h0WisteH0y+dQYdZu8HILVx3VqqgNPu612qT59hV1XJXCjER29bq8ChSm1ElxGLMrC7BiQ7TMvrtGZYk3ufRq+AMnU+Fjc7pmPR3iScUZcqpdRkTwGlOJgpybc89mz29g8xExAQi8M+pzOcH/ev7u1CXN43+t88K2Vo5pqSj9Auf/hJ60c8TGSogrGeBwK/PMixj0ili6h2WZRsBHnXTelt13dAFCkcdCvVlLuQrS/4a/1fNXn+tvATlUqYWI=
