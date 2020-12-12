@@ -24,3 +24,5 @@ mongoose
 
 module.exports.User = require("./users");
 module.exports.Counter = require("./counters");
+module.exports.Question = require("./question");
+module.exports.Option = require("./option")

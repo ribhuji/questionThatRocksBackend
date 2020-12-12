@@ -100,7 +100,7 @@ exports.registerUser = async (req, res, next) => {
             await db.Counter.create({name: "userid", sequence_value: 0});
         }
         var counterobj = await db.Counter.findOneAndUpdate({name: 'userid'}, { $inc: { sequence_value: 1 } }, { upsert: true });
-        console.log(counterobj);
+        //console.log(counterobj);
         //console.log(bodyRec['name'].trim().toLowerCase());
         var username = bodyRec['name'].toLowerCase() + bodyRec['surname'].toLowerCase() + counterobj.sequence_value;
         var obj = {
